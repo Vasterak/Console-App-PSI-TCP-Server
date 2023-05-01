@@ -38,7 +38,6 @@ namespace TCPServerV2
             Navigation,
             Finish,
             ServerSyntaxError,
-            ServerKeyOutOfRange,
             ServerLoginFailed
         }
         CommunicationState curComState, nextComState;
@@ -68,9 +67,15 @@ namespace TCPServerV2
         //Client information variables
         TcpClient client;
         Protocol protocol;
-
         string clientName = "";
         int generatedHash = 0, generatedKey = 0, keyID = 0;
+
+        //Client movement variables, index 0 is X, index 1 is Y
+        int[] coordFirst = new int[2];
+        int[] coordSecond = new int[2];
+        int[] coordFirstN = new int[2];
+        int[] coordSecondN = new int[2];
+        bool initMove = true;
 
         public Server(TcpClient client)
         {
@@ -90,11 +95,11 @@ namespace TCPServerV2
                     switch (curComState)
                     {
                         case CommunicationState.Authentication:
-
                             nextComState = await Authentication();
                             break;
 
                         case CommunicationState.Navigation:
+                            nextComState = await Movement();
                             break;
 
                         case CommunicationState.Finish:
@@ -103,22 +108,11 @@ namespace TCPServerV2
                         case CommunicationState.ServerSyntaxError:
                             break;
 
-                        case CommunicationState.ServerKeyOutOfRange:
-                            break;
-
                         case CommunicationState.ServerLoginFailed:
                             break;
 
                     }
                     curComState = nextComState;
-
-
-                    //string message = await protocol.ReceiveAsync();
-
-                    //Debug.PrintAsAscii(message, "input");
-                    //Debug.PrintAsChars(message, "input");
-
-                    //await protocol.SendAsync("107 KEY REQUEST\a\b");
                 }
             }
             catch (Exception e)
@@ -224,6 +218,29 @@ namespace TCPServerV2
             }
             curAuth = nextAuth;
             return CommunicationState.Authentication;
+        }
+
+        private async Task<CommunicationState> Movement()
+        {
+            string message;
+            if (initMove)
+            {
+                //Sent init move
+                await protocol.SendAsync(msgMove);
+
+                //Read input and check valid msg
+                message = await protocol.ReceiveAsync();
+                if (await protocol.CheckValidInput(message, 3) == false)
+                {
+                    return CommunicationState.ServerSyntaxError;
+                }
+                Debug.PrintInValue(message, "First coordinates");
+
+
+
+
+            }
+            return CommunicationState.Finish;
         }
     }
 }

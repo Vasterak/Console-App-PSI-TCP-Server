@@ -115,6 +115,23 @@ namespace TCPServerV2
             }
         }
 
+        public int[] GetCoordinaties(string inputmsg)
+        {
+            //Remove "OK" from message
+            inputmsg = inputmsg.Remove(0, 2);
+            inputmsg = inputmsg.Trim();
+
+            //split by space
+            string[] numbers = inputmsg.Split(' ');
+
+            //save values
+            int[] coordinaties = new int[2];
+            coordinaties[0] = int.Parse(numbers[0]);
+            coordinaties[1] = int.Parse(numbers[1]);
+
+            return coordinaties;
+        }
+
         public async Task SendAsync(string message)
         {
             Debug.PrintOutValue(message);
@@ -173,6 +190,26 @@ namespace TCPServerV2
                 case 3:
                     //msg must start with OK
                     if (msg.Length > 10 || !msg.StartsWith("OK", false, null))
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    //msg cannot be lower than this: OK 1 1 and also cannot include , or .
+                    if (msg.Length < 6 || msg.Contains('.') || msg.Contains(','))
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    //------------CHECK IF IT CAN BE PARSED-----------
+                    //Remove "OK" from message
+                    msg = msg.Remove(0, 2);
+                    msg = msg.Trim();
+
+                    //split by space
+                    string[] numbers = msg.Split(' ');
+
+                    //Check if it can be parsed
+                    if (int.TryParse(numbers[0], out int val0) == false || int.TryParse(numbers[1], out int val1) == false)
                     {
                         await SendAsync(msgSyntaxError);
                         return false;
