@@ -28,7 +28,7 @@ namespace TCPServerV2
             {
                 Console.Write($"{item}-");
             }
-            Console.WriteLine($"\n{spacingMsg + blockName + spacingMsg}-----\n");
+            Console.WriteLine($"\n{spacingMsg + blockName + spacingMsg}\n");
         }
 
         public static void PrintAsAscii(string message)
@@ -48,7 +48,7 @@ namespace TCPServerV2
             {
                 Console.Write($"{(int)item}-");
             }
-            Console.WriteLine($"\n{spacingMsg + blockName + spacingMsg}-----\n");
+            Console.WriteLine($"\n{spacingMsg + blockName + spacingMsg}\n");
         }
     }
 }

@@ -99,7 +99,8 @@ namespace TCPServerV2
 
                     string message = await protocol.ReceiveAsync();
 
-                    Debug.PrintAsAscii(message);
+                    Debug.PrintAsAscii(message, "input");
+                    Debug.PrintAsChars(message, "input");
 
                     await protocol.SendAsync("107 KEY REQUEST\a\b");
                 }
