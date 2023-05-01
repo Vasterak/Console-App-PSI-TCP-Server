@@ -26,10 +26,10 @@ namespace TCPServerV2
 
         //Error messages
         private const string msgErrorCode = "234MSGTooLong0649";
-        private const string msgLoginFailed = "300 LOGIN FAILED\a\b";
-        private const string msgSyntaxError = "301 SYNTAX ERROR\a\b";
-        private const string msgLogicError = "302 LOGIC ERROR\a\b";
-        private const string msgKeyOutOfRange = "303 KEY OUT OF RANGE\a\b";
+        private const string msgLoginFailed = "300 LOGIN FAILED";
+        private const string msgSyntaxError = "301 SYNTAX ERROR";
+        private const string msgLogicError = "302 LOGIC ERROR";
+        private const string msgKeyOutOfRange = "303 KEY OUT OF RANGE";
 
         public Protocol(TcpClient client)
         {
@@ -86,7 +86,7 @@ namespace TCPServerV2
 
             //Check if message is completed, then retun it
             if (message.Length > 2 && message.Substring(message.Length - 2) == "\a\b")
-                return message;
+                return message.Remove(message.Length - 2);
 
             //Received message is not completed, then wait until is fully received
             else
@@ -108,7 +108,7 @@ namespace TCPServerV2
                     {
                         message = stringBuffer;
                         stringBuffer = "";
-                        return message;
+                        return message.Remove(message.Length - 2);
                     }
                 }
                 return msgErrorCode;
@@ -117,10 +117,11 @@ namespace TCPServerV2
 
         public async Task SendAsync(string message)
         {
-            byte[] sendBuffer = Encoding.ASCII.GetBytes(message);
-            await stream.WriteAsync(sendBuffer, 0, sendBuffer.Length);
-
-            Console.WriteLine($"OUT:{message}:");
+            Debug.PrintOutValue(message);
+            message += '\a';
+            message += "\b";
+            byte[] sendBuffer = Encoding.UTF8.GetBytes(message);
+            await stream.WriteAsync(sendBuffer, 0, sendBuffer.Length);            
         }
 
         //---------------------------DATA VALIDITY CHECK AND ERROR SENDING----------------------------------

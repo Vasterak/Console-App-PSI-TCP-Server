@@ -56,14 +56,14 @@ namespace TCPServerV2
         AuthState curAuth, nextAuth;
 
         //Server messages types
-        const string msgMove = "102 MOVE\a\b";
-        const string msgTurnLeft = "103 TURN LEFT\a\b";
-        const string msgTurnRight = "104 TURN RIGHT\a\b";
-        const string msgPickUp = "105 GET MESSAGE\a\b";
-        const string msgLogout = "106 LOGOUT\a\b";
-        const string msgKeyRequest = "107 KEY REQUEST\a\b";
-        const string msgOK = "200 OK\a\b";
-        private const string msgLoginFailed = "300 LOGIN FAILED\a\b";
+        const string msgMove = "102 MOVE";
+        const string msgTurnLeft = "103 TURN LEFT";
+        const string msgTurnRight = "104 TURN RIGHT";
+        const string msgPickUp = "105 GET MESSAGE";
+        const string msgLogout = "106 LOGOUT";
+        const string msgKeyRequest = "107 KEY REQUEST";
+        const string msgOK = "200 OK";
+        private const string msgLoginFailed = "300 LOGIN FAILED";
 
         //Client information variables
         TcpClient client;
@@ -135,13 +135,14 @@ namespace TCPServerV2
             switch (curAuth)
             {
                 case AuthState.GetName:
+                    Console.WriteLine("-------------------Part1------------------------");
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync();
                     if (await protocol.CheckValidInput(message, 0) == false)
                         nextAuth = AuthState.AuthFailed;
 
                     //Debug.PrintAsAscii(message);
-                    Debug.PrintInValue(message, "Name", ":");
+                    Debug.PrintInValue(message, "Name");
 
 
                     clientName = message;
@@ -150,18 +151,22 @@ namespace TCPServerV2
                     break;
 
                 case AuthState.KeyRequest:
+                    Console.WriteLine("-------------------Part2------------------------");
+
                     await protocol.SendAsync(msgKeyRequest);
                     nextAuth = AuthState.KeyID;
                     break;
 
                 case AuthState.KeyID:
+                    Console.WriteLine("-------------------Part3------------------------");
+
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync();
                     if (await protocol.CheckValidInput(message, 0) == false)
                         nextAuth = AuthState.AuthFailed;
 
                     //Debug.PrintAsAscii(message);
-                    Debug.PrintInValue(message, "KeyID", ":");
+                    Debug.PrintInValue(message, "KeyID");
 
                     keyID = int.Parse(message);
                     generatedHash = Protocol.CalculateHash(clientName, keyID);
@@ -170,20 +175,24 @@ namespace TCPServerV2
                     break;
 
                 case AuthState.ServerConfirm:
+                    Console.WriteLine("-------------------Part4------------------------");
+
                     Console.WriteLine("GeneratedKey:" + generatedKey);
 
                     string idk = generatedKey.ToString();
                     await protocol.SendAsync(idk);
-                    //nextAuth = AuthState.ClientConfirm;
+                    nextAuth = AuthState.ClientConfirm;
                     break;
 
                 case AuthState.ClientConfirm:
+                    Console.WriteLine("-------------------Part5------------------------");
+
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync();
                     if (await protocol.CheckValidInput(message, 0) == false)
                         nextAuth = AuthState.AuthFailed;
 
-                    Debug.PrintInValue(message, "ClientConfirm", ":");
+                    Debug.PrintInValue(message, "ClientConfirm");
 
                     if (Protocol.CalculateHashBack(int.Parse(message), keyID) == generatedHash)
                     {
