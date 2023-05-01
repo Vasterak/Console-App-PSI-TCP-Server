@@ -51,7 +51,7 @@ namespace TCPServerV2
             ServerConfirm,
             ClientConfirm,
             AuthComplete,
-            AuthFailed
+            AuthFailEnd
         }
         AuthState curAuth, nextAuth;
 
@@ -139,7 +139,10 @@ namespace TCPServerV2
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync();
                     if (await protocol.CheckValidInput(message, 0) == false)
-                        nextAuth = AuthState.AuthFailed;
+                    {
+                        nextAuth = AuthState.AuthFailEnd;
+                        break;
+                    }
 
                     //Debug.PrintAsAscii(message);
                     Debug.PrintInValue(message, "Name");
@@ -162,8 +165,11 @@ namespace TCPServerV2
 
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync();
-                    if (await protocol.CheckValidInput(message, 0) == false)
-                        nextAuth = AuthState.AuthFailed;
+                    if (await protocol.CheckValidInput(message, 1) == false)
+                    {
+                        nextAuth = AuthState.AuthFailEnd;
+                        break;
+                    }
 
                     //Debug.PrintAsAscii(message);
                     Debug.PrintInValue(message, "KeyID");
@@ -189,32 +195,34 @@ namespace TCPServerV2
 
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync();
-                    if (await protocol.CheckValidInput(message, 0) == false)
-                        nextAuth = AuthState.AuthFailed;
-
+                    if (await protocol.CheckValidInput(message, 2) == false)
+                    {
+                        nextAuth = AuthState.AuthFailEnd;
+                        break;
+                    }
+                        
                     Debug.PrintInValue(message, "ClientConfirm");
 
+                    //Check if keys are valid
                     if (Protocol.CalculateHashBack(int.Parse(message), keyID) == generatedHash)
-                    {
-                        await protocol.SendAsync(msgOK);
                         nextAuth = AuthState.AuthComplete;
-                    }
                     else
                     {
                         await protocol.SendAsync(msgLoginFailed);
-                        nextAuth = AuthState.AuthFailed;
+                        nextAuth = AuthState.AuthFailEnd;
+
                     }
                     break;
 
                 case AuthState.AuthComplete:
-                    break;
+                    await protocol.SendAsync(msgOK);
+                    return CommunicationState.Navigation;
 
-                case AuthState.AuthFailed:
+                case AuthState.AuthFailEnd:
                     client.Close();
-                    break;
+                    return CommunicationState.ServerLoginFailed;
             }
             curAuth = nextAuth;
-
             return CommunicationState.Authentication;
         }
     }

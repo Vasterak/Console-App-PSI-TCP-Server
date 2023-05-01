@@ -153,7 +153,7 @@ namespace TCPServerV2
                         return false;
                     }
                     //check if is in valid range
-                    if (int.Parse(msg) < 0 && int.Parse(msg) > 4)
+                    if (int.Parse(msg) < 0 || int.Parse(msg) > 4)
                     {
                         await SendAsync(msgKeyOutOfRange);
                         return false;
