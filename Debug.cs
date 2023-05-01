@@ -50,5 +50,10 @@ namespace TCPServerV2
             }
             Console.WriteLine($"\n{spacingMsg + blockName + spacingMsg}\n");
         }
+
+        public static void PrintInValue(string message, string inputFormat, string delimeter)
+        {
+            Console.WriteLine($"Incomming {inputFormat} {delimeter}{message}{delimeter}");
+        }
     }
 }

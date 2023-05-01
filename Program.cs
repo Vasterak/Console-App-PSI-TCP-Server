@@ -50,12 +50,28 @@ namespace TCPServerV2
             KeyID,
             ServerConfirm,
             ClientConfirm,
-            AuthComplete
+            AuthComplete,
+            AuthFailed
         }
         AuthState curAuth, nextAuth;
 
+        //Server messages types
+        const string msgMove = "102 MOVE\a\b";
+        const string msgTurnLeft = "103 TURN LEFT\a\b";
+        const string msgTurnRight = "104 TURN RIGHT\a\b";
+        const string msgPickUp = "105 GET MESSAGE\a\b";
+        const string msgLogout = "106 LOGOUT\a\b";
+        const string msgKeyRequest = "107 KEY REQUEST\a\b";
+        const string msgOK = "200 OK\a\b";
+        private const string msgLoginFailed = "300 LOGIN FAILED\a\b";
+
+        //Client information variables
         TcpClient client;
         Protocol protocol;
+
+        string clientName = "";
+        int generatedHash = 0, generatedKey = 0, keyID = 0;
+
         public Server(TcpClient client)
         {
             this.client = client;
@@ -107,7 +123,7 @@ namespace TCPServerV2
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                Console.WriteLine($"Error: {e}");
                 client.Close();
             }
         }
@@ -119,27 +135,73 @@ namespace TCPServerV2
             switch (curAuth)
             {
                 case AuthState.GetName:
+                    //Read input and check validity.
                     message = await protocol.ReceiveAsync();
                     if (await protocol.CheckValidInput(message, 0) == false)
-                        client.Close();
+                        nextAuth = AuthState.AuthFailed;
+
+                    //Debug.PrintAsAscii(message);
+                    Debug.PrintInValue(message, "Name", ":");
+
+
+                    clientName = message;
+                    nextAuth = AuthState.KeyRequest;
                     
-
-
                     break;
 
                 case AuthState.KeyRequest:
+                    await protocol.SendAsync(msgKeyRequest);
+                    nextAuth = AuthState.KeyID;
                     break;
 
                 case AuthState.KeyID:
+                    //Read input and check validity.
+                    message = await protocol.ReceiveAsync();
+                    if (await protocol.CheckValidInput(message, 0) == false)
+                        nextAuth = AuthState.AuthFailed;
+
+                    //Debug.PrintAsAscii(message);
+                    Debug.PrintInValue(message, "KeyID", ":");
+
+                    keyID = int.Parse(message);
+                    generatedHash = Protocol.CalculateHash(clientName, keyID);
+                    generatedKey = Protocol.CalculateConfirmCode(generatedHash, keyID);
+                    nextAuth = AuthState.ServerConfirm;
                     break;
 
-                case AuthState.ServerConfirm: 
+                case AuthState.ServerConfirm:
+                    Console.WriteLine("GeneratedKey:" + generatedKey);
+
+                    string idk = generatedKey.ToString();
+                    await protocol.SendAsync(idk);
+                    //nextAuth = AuthState.ClientConfirm;
                     break;
 
                 case AuthState.ClientConfirm:
+                    //Read input and check validity.
+                    message = await protocol.ReceiveAsync();
+                    if (await protocol.CheckValidInput(message, 0) == false)
+                        nextAuth = AuthState.AuthFailed;
+
+                    Debug.PrintInValue(message, "ClientConfirm", ":");
+
+                    if (Protocol.CalculateHashBack(int.Parse(message), keyID) == generatedHash)
+                    {
+                        await protocol.SendAsync(msgOK);
+                        nextAuth = AuthState.AuthComplete;
+                    }
+                    else
+                    {
+                        await protocol.SendAsync(msgLoginFailed);
+                        nextAuth = AuthState.AuthFailed;
+                    }
                     break;
 
                 case AuthState.AuthComplete:
+                    break;
+
+                case AuthState.AuthFailed:
+                    client.Close();
                     break;
             }
             curAuth = nextAuth;
