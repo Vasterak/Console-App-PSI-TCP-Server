@@ -36,9 +36,10 @@ namespace TCPServerV2
         {
             Authentication,
             Navigation,
-            Finish,
+            PickSecret,
             ServerSyntaxError,
-            ServerLoginFailed
+            ServerLoginFailed,
+            SuccessEnd
         }
         CommunicationState curComState, nextComState;
 
@@ -99,16 +100,24 @@ namespace TCPServerV2
                             break;
 
                         case CommunicationState.Navigation:
-                            nextComState = await Movement();
+                            nextComState = await Navigation();
                             break;
 
-                        case CommunicationState.Finish:
+                        case CommunicationState.PickSecret:
+                            nextComState = await PickSecret();
                             break;
 
                         case CommunicationState.ServerSyntaxError:
+                            client.Close();
                             break;
 
                         case CommunicationState.ServerLoginFailed:
+                            client.Close();
+                            break;
+
+                        case CommunicationState.SuccessEnd:
+                            await protocol.SendAsync(msgLogout);
+                            client.Close();
                             break;
 
                     }
@@ -213,34 +222,73 @@ namespace TCPServerV2
                     return CommunicationState.Navigation;
 
                 case AuthState.AuthFailEnd:
-                    client.Close();
                     return CommunicationState.ServerLoginFailed;
             }
             curAuth = nextAuth;
             return CommunicationState.Authentication;
         }
 
-        private async Task<CommunicationState> Movement()
+        private async Task<CommunicationState> Navigation()
         {
             string message;
+
+            //First movement, we need to determine direction etc.
             if (initMove)
             {
-                //Sent init move
+                //Sent first move
                 await protocol.SendAsync(msgMove);
 
                 //Read input and check valid msg
                 message = await protocol.ReceiveAsync();
                 if (await protocol.CheckValidInput(message, 3) == false)
-                {
                     return CommunicationState.ServerSyntaxError;
-                }
+
+                //Save first coord
+                coordFirst = protocol.GetCoordinaties(message);
+
                 Debug.PrintInValue(message, "First coordinates");
+                Debug.PrintArray(coordFirst, 1);
 
+                //If we are on 0,0 we dont need to move
+                if (coordFirst[0] == 0 && coordFirst[1] == 0)
+                    return CommunicationState.PickSecret;
 
+                //Sent second move
+                await protocol.SendAsync(msgMove);
 
+                //Read input and check valid msg
+                message = await protocol.ReceiveAsync();
+                if (await protocol.CheckValidInput(message, 3) == false)
+                    return CommunicationState.ServerSyntaxError;
+
+                //Save second coord
+                coordFirst = protocol.GetCoordinaties(message);
+
+                Debug.PrintInValue(message, "Second coordinates");
+                Debug.PrintArray(coordFirst, 2);
 
             }
-            return CommunicationState.Finish;
+            return CommunicationState.PickSecret;
+        }
+
+        private async Task<CommunicationState> PickSecret()
+        {
+            string message;
+
+            //Read msg
+            await protocol.SendAsync(msgPickUp);
+
+            //Check valid
+            message = await protocol.ReceiveAsync();
+            if (await protocol.CheckValidInput(message, 6) == false)
+                return CommunicationState.ServerSyntaxError;
+
+            //Print
+            Debug.PrintInValue(message, "Secret message");
+
+            //Return end
+            return CommunicationState.SuccessEnd;
+
         }
     }
 }
