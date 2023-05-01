@@ -17,11 +17,19 @@ namespace TCPServerV2
         //Auth variables
         private static readonly int[] serverKey = { 23019, 32037, 18789, 16443, 18189 };
         private static readonly int[] clientKey = { 32037, 29295, 13603, 29533, 21952 };
+        private const int keyNumber = 4;
         const int FIXEDVALUE = 65536;
 
         //Incomming message buffers
+        const int maxIncommingLength = 102;
         private string stringBuffer = "";
-        private string msgErrorCode = "234MSGTooLong0649";
+
+        //Error messages
+        private const string msgErrorCode = "234MSGTooLong0649";
+        private const string msgLoginFailed = "300 LOGIN FAILED\a\b";
+        private const string msgSyntaxError = "301 SYNTAX ERROR\a\b";
+        private const string msgLogicError = "302 LOGIC ERROR\a\b";
+        private const string msgKeyOutOfRange = "303 KEY OUT OF RANGE\a\b";
 
         public Protocol(TcpClient client)
         {
@@ -54,7 +62,8 @@ namespace TCPServerV2
 
             return calcBack;
         }
-        //-------------------------------------------------------------
+
+        //---------------------------DATA IN AND OUT----------------------------------
         public async Task FlushBuffer()
         {
             await client.GetStream().FlushAsync();
@@ -71,7 +80,7 @@ namespace TCPServerV2
             message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
             message.TrimEnd('\0');
 
-            //If msg is longer that allowed just throw error
+            //If msg is longer than any allowed just throw error
             if (message.Length > 102)
                 return msgErrorCode;
 
@@ -85,7 +94,7 @@ namespace TCPServerV2
                 //Save part of the msg to buffer and set flag
                 stringBuffer += message;
 
-                while (stringBuffer.Length < 102)
+                while (stringBuffer.Length < maxIncommingLength)
                 {
                     //Read again new data
                     bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
@@ -113,5 +122,102 @@ namespace TCPServerV2
 
             Console.WriteLine($"OUT:{message}:");
         }
+
+        //---------------------------DATA VALIDITY CHECK AND ERROR SENDING----------------------------------
+        public async Task<bool> CheckValidInput(string msg, int msgID)
+        {
+            if (msg == msgErrorCode)
+            {
+                await SendAsync(msgSyntaxError);
+                return false;
+            }
+
+            switch (msgID)
+            {
+                //CLIENT_USERNAME
+                case 0:
+                    if (msg.Length > 18 || msg == "RECHARGING")
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    break;
+
+                //CLIENT_KEY_ID
+                case 1:
+                    //check if all chars are number, //check if input can be parsed, if not return false
+                    if (msg.Length > 3 || IsDigitsOnly(msg) == false || !int.TryParse(msg, out int value))
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    //check if is in valid range
+                    if (int.Parse(msg) < 0 && int.Parse(msg) > 4)
+                    {
+                        await SendAsync(msgKeyOutOfRange);
+                        return false;
+                    }
+                    break;
+
+                //CLIENT_CONFIRMATION
+                case 2:
+                    if (msg.Length > 5 || IsDigitsOnly(msg) == false)
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    break;
+
+                //CLIENT_OK
+                case 3:
+                    //msg must start with OK
+                    if (msg.Length > 10 || !msg.StartsWith("OK", false, null))
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+
+                    break;
+
+                //CLIENT_RECHARGING
+                case 4:
+                    if (msg.Length > 10 || msg != "RECHARGING")
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    break;
+
+                //CLIENT_FULL_POWER
+                case 5:
+                    if (msg.Length > 10 || msg != "FULL POWER")
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    break;
+
+                //CLIENT_MESSAGE
+                case 6:
+                    if (msg.Length > 100)
+                    {
+                        await SendAsync(msgSyntaxError);
+                        return false;
+                    }
+                    break;
+            }
+            return true;
+        }
+        private static bool IsDigitsOnly(string str)
+        {
+            foreach (char c in str)
+            {
+                if (c < '0' || c > '9')
+                    return false;
+            }
+
+            return true;
+        }
+
     }
 }

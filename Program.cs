@@ -55,22 +55,22 @@ namespace TCPServerV2
         AuthState curAuth, nextAuth;
 
         TcpClient client;
+        Protocol protocol;
         public Server(TcpClient client)
         {
             this.client = client;
+            protocol = new Protocol(client);
         }
 
         public async Task HandleClientAsync()
         {
             try
             {
-                //Create instance of protocol class that handles communication
-                Protocol protocol = new Protocol(client);
-
                 while (client.Connected)
                 {
                     await protocol.FlushBuffer();
 
+                    //Server "finite state machine"
                     switch (curComState)
                     {
                         case CommunicationState.Authentication:
@@ -97,12 +97,12 @@ namespace TCPServerV2
                     curComState = nextComState;
 
 
-                    string message = await protocol.ReceiveAsync();
+                    //string message = await protocol.ReceiveAsync();
 
-                    Debug.PrintAsAscii(message, "input");
-                    Debug.PrintAsChars(message, "input");
+                    //Debug.PrintAsAscii(message, "input");
+                    //Debug.PrintAsChars(message, "input");
 
-                    await protocol.SendAsync("107 KEY REQUEST\a\b");
+                    //await protocol.SendAsync("107 KEY REQUEST\a\b");
                 }
             }
             catch (Exception e)
@@ -114,9 +114,17 @@ namespace TCPServerV2
 
         private async Task<CommunicationState> Authentication()
         {
+            string message;
+            //All Auth steps, that are required
             switch (curAuth)
             {
                 case AuthState.GetName:
+                    message = await protocol.ReceiveAsync();
+                    if (await protocol.CheckValidInput(message, 0) == false)
+                        client.Close();
+                    
+
+
                     break;
 
                 case AuthState.KeyRequest:
