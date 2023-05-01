@@ -20,7 +20,7 @@ namespace TCPServerV2
             while (true)
             {
                 TcpClient client = await server.AcceptTcpClientAsync();
-                Console.WriteLine($"New client connected: {client.Client.RemoteEndPoint}");
+                Console.WriteLine($"\n\n\nNew client connected: {client.Client.RemoteEndPoint}");
 
                 //Handle client communication
                 //Task.Run(() => HandleClientAsync(client));
@@ -213,7 +213,6 @@ namespace TCPServerV2
                     {
                         await protocol.SendAsync(msgLoginFailed);
                         nextAuth = AuthState.AuthFailEnd;
-
                     }
                     break;
 
@@ -231,8 +230,9 @@ namespace TCPServerV2
         private async Task<CommunicationState> Navigation()
         {
             string message;
+            Console.WriteLine("-------------------Movement------------------------");
 
-            //First movement, we need to determine direction etc.
+            //-----------------------First movement, we need to determine direction etc.--------------------
             if (initMove)
             {
                 //Sent first move
@@ -262,13 +262,83 @@ namespace TCPServerV2
                     return CommunicationState.ServerSyntaxError;
 
                 //Save second coord
-                coordFirst = protocol.GetCoordinaties(message);
+                coordSecond = protocol.GetCoordinaties(message);
 
                 Debug.PrintInValue(message, "Second coordinates");
-                Debug.PrintArray(coordFirst, 2);
+                Debug.PrintArray(coordSecond, 2);
+
+                initMove = false;
+            }
+
+            //---------------------------------------Continous movement----------------------
+
+            coordFirstN[0] = Math.Abs(coordFirst[0]);
+            coordFirstN[1] = Math.Abs(coordFirst[1]);
+            coordSecondN[0] = Math.Abs(coordSecond[0]);
+            coordSecondN[1] = Math.Abs(coordSecond[1]);
+
+            Debug.PrintArray(coordFirst, 1);
+            Debug.PrintArray(coordSecond, 2);
+
+            //When equal, robot hit the rock
+            if (coordFirst == coordSecond)
+            {
+                Console.WriteLine("WILL FIX LATER ROBOT HIT ROCK");
+                return CommunicationState.ServerSyntaxError;
+            }
+
+            //After second move we are on 0,0
+            else if (coordSecond[0] == 0 && coordSecond[1] == 0)
+                return CommunicationState.PickSecret;
+
+            //Navigating check if 5,7 moved to 5,6 is valid which is, other axis shoud not change
+            else if (coordFirstN[1] > coordSecondN[1] && coordFirstN[0] == coordSecondN[0])
+            {
+                //Check on moving axis if we are on 0
+                if (coordSecondN[1] == 0)
+                {
+                    Console.WriteLine("Robot hit zero on second axis");
+                    await protocol.SendAsync(msgTurnRight);
+                    await protocol.SendAsync(msgMove);
+                }
+
+                //We are not at the zero, continues until zero is met or we hit the rock
+                else
+                    await protocol.SendAsync(msgMove);
 
             }
-            return CommunicationState.PickSecret;
+
+            else if (coordFirstN[1] == coordSecondN[1] && coordFirstN[0] > coordSecondN[0])
+            {
+                //Check on moving axis if we are on 0
+                if (coordSecondN[0] == 0)
+                {
+                    Console.WriteLine("We hit zero on first axis");
+
+                    await protocol.SendAsync(msgTurnLeft);
+                    await protocol.SendAsync(msgMove);
+                }
+                //We are not at the zero, continues until zero is met or we hit the rock
+                else
+                    await protocol.SendAsync(msgMove);
+            }
+
+            else if (coordSecondN[0] > coordFirstN[0] || coordSecondN[1] > coordFirstN[1])
+            {
+                await protocol.SendAsync(msgTurnRight);
+                await protocol.SendAsync(msgTurnRight);
+                await protocol.SendAsync(msgMove);
+            }
+
+            //READ NEW VALUES
+            message = await protocol.ReceiveAsync();
+            if (await protocol.CheckValidInput(message, 3) == false)
+                return CommunicationState.ServerSyntaxError;
+
+            coordFirst = coordSecond;
+            coordSecond = protocol.GetCoordinaties(message);
+
+            return CommunicationState.Navigation;
         }
 
         private async Task<CommunicationState> PickSecret()
