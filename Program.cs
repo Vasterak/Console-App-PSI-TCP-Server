@@ -23,11 +23,22 @@ namespace TCPServerV2
                 Console.WriteLine($"New client connected: {client.Client.RemoteEndPoint}");
 
                 //Task.Run(() => HandleClientAsync(client));
-                _ = HandleClientAsync(client);
+                Server mainServer = new Server(client);
+
+                _ = mainServer.HandleClientAsync(client);
             }
         }
+    }
 
-        static async Task HandleClientAsync(TcpClient client)
+    class Server
+    {
+        TcpClient client;
+        public Server(TcpClient client)
+        {
+            this.client = client;
+        }
+
+        public async Task HandleClientAsync(TcpClient client)
         {
             try
             {
@@ -36,11 +47,13 @@ namespace TCPServerV2
 
                 while (client.Connected)
                 {
+                    await protocol.FlushBuffer();
+
                     string message = await protocol.ReceiveAsync();
+
                     Debug.PrintAsAscii(message);
 
-                    string timestampedMessage = $"107 KEY REQUEST\a\b";
-                    await protocol.SendAsync(timestampedMessage);
+                    await protocol.SendAsync("107 KEY REQUEST\a\b");
                 }
             }
             catch (Exception e)

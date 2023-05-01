@@ -19,7 +19,7 @@ namespace TCPServerV2
             this.stream = client.GetStream();
         }
 
-        private async Task FlushBuffer()
+        public async Task FlushBuffer()
         {
             await client.GetStream().FlushAsync();
             Array.Clear(receiveBuffer, 0, receiveBuffer.Length);
@@ -28,16 +28,14 @@ namespace TCPServerV2
         public async Task<string> ReceiveAsync()
         {
             int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-            string message = Encoding.UTF8.GetString(receiveBuffer, 0, bytesRead);
-
-            await FlushBuffer();
+            string message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
 
             return message.TrimEnd('\0');
         }
 
         public async Task SendAsync(string message)
         {
-            byte[] sendBuffer = Encoding.UTF8.GetBytes(message);
+            byte[] sendBuffer = Encoding.ASCII.GetBytes(message);
             await stream.WriteAsync(sendBuffer, 0, sendBuffer.Length);
 
             Console.WriteLine($"Sent msg:{message}:");
