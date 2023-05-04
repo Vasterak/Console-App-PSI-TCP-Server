@@ -95,20 +95,21 @@ namespace TCPServerV2
                 }
             }
 
-            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(1));
 
             //When no valid msg with termination(\a\b) was found in buffer wait for the rest of the msg
             while (stringBuffer.Length < maxIncommingLength)
             {
                 //Read new data and check for timeout
-                int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length, cts.Token);
-                message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
-                message.TrimEnd('\0');
+                var ReadTask = await Task.WhenAny(stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length), timeoutTask);
 
-                if (cts.IsCancellationRequested)
-                {
-                    Debug.PrintInValue("Client timeout", "Server:");
+                if (ReadTask == timeoutTask)
                     return msgTimeOutError;
+                else
+                {
+                    int bytesRead = ((Task<int>)ReadTask).Result;
+                    message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
+                    message.TrimEnd('\0');
                 }
 
                 //Add again received content to buffer
@@ -173,6 +174,7 @@ namespace TCPServerV2
             }
             else if (msg == msgTimeOutError)
             {
+                Console.WriteLine("SERVER: Client connection has timed out");
                 return false;
             }
 
