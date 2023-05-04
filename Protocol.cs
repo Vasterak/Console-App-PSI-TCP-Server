@@ -72,19 +72,8 @@ namespace TCPServerV2
 
         public async Task<string> ReceiveAsync()
         {
-            //Read incomming data from stream
-            string message;
+            string message = "";
             int bytesRead;
-            bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-            message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
-            message.TrimEnd('\0');
-
-            //If msg is longer than any allowed just throw error
-            if (message.Length > 102)
-                return msgErrorCode;
-
-            //Add incomming data to exixsting buffer
-            stringBuffer += message;
 
             //Cycle through data in buffer until full msg is found
             for (int i = 0; i < stringBuffer.Length; i++)
