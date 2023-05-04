@@ -72,10 +72,9 @@ namespace TCPServerV2
 
         public async Task<string> ReceiveAsync()
         {
+            //Read incomming data from stream
             string message;
             int bytesRead;
-
-            //Initial read
             bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
             message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
             message.TrimEnd('\0');
@@ -84,35 +83,61 @@ namespace TCPServerV2
             if (message.Length > 102)
                 return msgErrorCode;
 
-            //Check if message is completed, then retun it
-            if (message.Length > 2 && message.Substring(message.Length - 2) == "\a\b")
-                return message.Remove(message.Length - 2);
+            //Add incomming data to exixsting buffer
+            stringBuffer += message;
 
-            //Received message is not completed, then wait until is fully received
-            else
+            //Cycle through data in buffer until full msg is found
+            for (int i = 0; i < stringBuffer.Length; i++)
             {
-                //Save part of the msg to buffer and set flag
+                //Check if \a is located at the end of the buffer
+                if (stringBuffer[i] == '\a' && stringBuffer.Length == i + 1)
+                    break;
+
+                //When first msg is found
+                if (stringBuffer[i] == '\a' && stringBuffer[i + 1] == '\b')
+                {
+                    //Save it to new string
+                    string singleMsg = stringBuffer.Substring(0, i);
+
+                    //Remove msg from buffer + remove \a \b, leave rest of msg there
+                    stringBuffer = stringBuffer.Remove(0, i+2);
+
+                    return singleMsg;
+                }
+            }
+            
+            //When no valid msg with termination(\a\b) was found in buffer wait for the rest of the msg
+            while (stringBuffer.Length < maxIncommingLength)
+            {
+                //Read again new data
+                bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
+                message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
+                message.TrimEnd('\0');
+
+                //Add again received content to buffer
                 stringBuffer += message;
 
-                while (stringBuffer.Length < maxIncommingLength)
+                //Cycle through data in buffer until full msg is found
+                for (int i = 0; i < stringBuffer.Length; i++)
                 {
-                    //Read again new data
-                    bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-                    message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
-                    message.TrimEnd('\0');
+                    //Check if \a is located at the end of the buffer
+                    if (stringBuffer[i] == '\a' && stringBuffer.Length == i + 1)
+                        break;
 
-                    stringBuffer += message;
-
-                    //Check if msg end was received
-                    if (stringBuffer.Substring(stringBuffer.Length - 2) == "\a\b")
+                    //When first msg is found
+                    if (stringBuffer[i] == '\a' && stringBuffer[i + 1] == '\b')
                     {
-                        message = stringBuffer;
-                        stringBuffer = "";
-                        return message.Remove(message.Length - 2);
+                        //Save it to new string
+                        string singleMsg = stringBuffer.Substring(0, i);
+
+                        //Remove msg from buffer + remove \a \b, leave rest of msg there
+                        stringBuffer = stringBuffer.Remove(0, i + 2);
+
+                        return singleMsg;
                     }
                 }
-                return msgErrorCode;
             }
+            return msgErrorCode;
         }
 
         public int[] GetCoordinaties(string inputmsg)
