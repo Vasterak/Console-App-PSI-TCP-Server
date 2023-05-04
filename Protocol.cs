@@ -95,20 +95,21 @@ namespace TCPServerV2
                 }
             }
 
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+
             //When no valid msg with termination(\a\b) was found in buffer wait for the rest of the msg
             while (stringBuffer.Length < maxIncommingLength)
             {
                 //Read new data and check for timeout
-                Task<int> bytesRead = stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-                int bytesRead2 = await bytesRead;
-
-                //Timeout implementation, measure task time
-                await Task.WhenAny(bytesRead, Task.Delay(1000));
-                if (!bytesRead.IsCompleted)
-                    return msgTimeOutError;
-
-                message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead2);
+                int bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length, cts.Token);
+                message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
                 message.TrimEnd('\0');
+
+                if (cts.IsCancellationRequested)
+                {
+                    Debug.PrintInValue("Client timeout", "Server:");
+                    return msgTimeOutError;
+                }
 
                 //Add again received content to buffer
                 stringBuffer += message;
