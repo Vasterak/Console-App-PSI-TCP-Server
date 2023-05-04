@@ -22,6 +22,9 @@ namespace TCPServerV2
                 TcpClient client = await server.AcceptTcpClientAsync();
                 Console.WriteLine($"\n\n\nNew client connected: {client.Client.RemoteEndPoint}");
 
+                //Set timeout time
+                client.ReceiveTimeout = 1000; //in ms
+
                 //Handle client communication
                 //Task.Run(() => HandleClientAsync(client));
                 Server mainServer = new Server(client);

@@ -26,6 +26,7 @@ namespace TCPServerV2
 
         //Error messages
         private const string msgErrorCode = "234MSGTooLong0649";
+        private const string msgTimeOutError = "TookYouLongEnough39434";
         private const string msgLoginFailed = "300 LOGIN FAILED";
         private const string msgSyntaxError = "301 SYNTAX ERROR";
         private const string msgLogicError = "302 LOGIC ERROR";
@@ -73,7 +74,6 @@ namespace TCPServerV2
         public async Task<string> ReceiveAsync()
         {
             string message = "";
-            int bytesRead;
 
             //Cycle through data in buffer until full msg is found
             for (int i = 0; i < stringBuffer.Length; i++)
@@ -94,13 +94,20 @@ namespace TCPServerV2
                     return singleMsg;
                 }
             }
-            
+
             //When no valid msg with termination(\a\b) was found in buffer wait for the rest of the msg
             while (stringBuffer.Length < maxIncommingLength)
             {
-                //Read again new data
-                bytesRead = await stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-                message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
+                //Read new data and check for timeout
+                Task<int> bytesRead = stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
+                int bytesRead2 = await bytesRead;
+
+                //Timeout implementation, measure task time
+                await Task.WhenAny(bytesRead, Task.Delay(1000));
+                if (!bytesRead.IsCompleted)
+                    return msgTimeOutError;
+
+                message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead2);
                 message.TrimEnd('\0');
 
                 //Add again received content to buffer
@@ -161,6 +168,10 @@ namespace TCPServerV2
             if (msg == msgErrorCode)
             {
                 await SendAsync(msgSyntaxError);
+                return false;
+            }
+            else if (msg == msgTimeOutError)
+            {
                 return false;
             }
 
