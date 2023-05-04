@@ -18,19 +18,15 @@ namespace TCPServerV2
         private static readonly int[] serverKey = { 23019, 32037, 18789, 16443, 18189 };
         private static readonly int[] clientKey = { 32037, 29295, 13603, 29533, 21952 };
         private const int keyNumber = 4;
-        const int FIXEDVALUE = 65536;
+        private const int FIXEDVALUE = 65536;
 
         //Incomming message buffers
-        const int maxIncommingLength = 102;
+        private const int maxIncommingLength = 102;
         private string stringBuffer = "";
 
-        //Error messages
-        private const string msgErrorCode = "234MSGTooLong0649";
-        private const string msgTimeOutError = "TookYouLongEnough39434";
-        private const string msgLoginFailed = "300 LOGIN FAILED";
-        private const string msgSyntaxError = "301 SYNTAX ERROR";
-        private const string msgLogicError = "302 LOGIC ERROR";
-        private const string msgKeyOutOfRange = "303 KEY OUT OF RANGE";
+
+        //Obstacle avoidance variables
+        private int maneuverStatIndex = 0;
 
         public Protocol(TcpClient client)
         {
@@ -38,7 +34,7 @@ namespace TCPServerV2
             this.stream = client.GetStream();
         }
 
-        //------------------------------AUTH----------------------------
+        //------------------------------AUTH------------------------------------------
         public static int CalculateHash(string inputMessage, int index)
         {
             //Sum all chars from input name
@@ -104,7 +100,7 @@ namespace TCPServerV2
                 var ReadTask = await Task.WhenAny(stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length), timeoutTask);
 
                 if (ReadTask == timeoutTask)
-                    return msgTimeOutError;
+                    return Messages.msgTimeOutError;
                 else
                 {
                     int bytesRead = ((Task<int>)ReadTask).Result;
@@ -137,24 +133,7 @@ namespace TCPServerV2
                     }
                 }
             }
-            return msgErrorCode;
-        }
-
-        public int[] GetCoordinaties(string inputmsg)
-        {
-            //Remove "OK" from message
-            inputmsg = inputmsg.Remove(0, 2);
-            inputmsg = inputmsg.Trim();
-
-            //split by space
-            string[] numbers = inputmsg.Split(' ');
-
-            //save values
-            int[] coordinaties = new int[2];
-            coordinaties[0] = int.Parse(numbers[0]);
-            coordinaties[1] = int.Parse(numbers[1]);
-
-            return coordinaties;
+            return Messages.msgErrorCode;
         }
 
         public async Task SendAsync(string message)
@@ -166,15 +145,15 @@ namespace TCPServerV2
             await stream.WriteAsync(sendBuffer, 0, sendBuffer.Length);            
         }
 
-        //---------------------------DATA VALIDITY CHECK AND ERROR SENDING----------------------------------
+        //---------------------------DATA VALIDITY CHECK AND ERROR SENDING------------
         public async Task<bool> CheckValidInput(string msg, int msgID)
         {
-            if (msg == msgErrorCode)
+            if (msg == Messages.msgErrorCode)
             {
-                await SendAsync(msgSyntaxError);
+                await SendAsync(Messages.msgSyntaxError);
                 return false;
             }
-            else if (msg == msgTimeOutError)
+            else if (msg == Messages.msgTimeOutError)
             {
                 Console.WriteLine("SERVER: Client connection has timed out");
                 return false;
@@ -186,7 +165,7 @@ namespace TCPServerV2
                 case 0:
                     if (msg.Length > 18 || msg == "RECHARGING")
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     break;
@@ -196,13 +175,13 @@ namespace TCPServerV2
                     //check if all chars are number, //check if input can be parsed, if not return false
                     if (msg.Length > 3 || IsDigitsOnly(msg) == false || !int.TryParse(msg, out int value))
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     //check if is in valid range
                     if (int.Parse(msg) < 0 || int.Parse(msg) > 4)
                     {
-                        await SendAsync(msgKeyOutOfRange);
+                        await SendAsync(Messages.msgKeyOutOfRange);
                         return false;
                     }
                     break;
@@ -211,7 +190,7 @@ namespace TCPServerV2
                 case 2:
                     if (msg.Length > 5 || IsDigitsOnly(msg) == false)
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     break;
@@ -221,13 +200,13 @@ namespace TCPServerV2
                     //msg must start with OK
                     if (msg.Length > 10 || !msg.StartsWith("OK", false, null))
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     //msg cannot be lower than this: OK 1 1 and also cannot include , or .
                     if (msg.Length < 6 || msg.Contains('.') || msg.Contains(','))
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     //------------CHECK IF IT CAN BE PARSED-----------
@@ -241,7 +220,7 @@ namespace TCPServerV2
                     //Check if it can be parsed
                     if (int.TryParse(numbers[0], out int val0) == false || int.TryParse(numbers[1], out int val1) == false)
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
 
@@ -251,7 +230,7 @@ namespace TCPServerV2
                 case 4:
                     if (msg.Length > 10 || msg != "RECHARGING")
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     break;
@@ -260,7 +239,7 @@ namespace TCPServerV2
                 case 5:
                     if (msg.Length > 10 || msg != "FULL POWER")
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     break;
@@ -269,7 +248,7 @@ namespace TCPServerV2
                 case 6:
                     if (msg.Length > 100)
                     {
-                        await SendAsync(msgSyntaxError);
+                        await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
                     break;
@@ -287,5 +266,54 @@ namespace TCPServerV2
             return true;
         }
 
+
+        //--------------------------------MOVEMENT------------------------------------
+        public int[] GetCoordinaties(string inputmsg)
+        {
+            //Remove "OK" from message
+            inputmsg = inputmsg.Remove(0, 2);
+            inputmsg = inputmsg.Trim();
+
+            //split by space
+            string[] numbers = inputmsg.Split(' ');
+
+            //save values
+            int[] coordinaties = new int[2];
+            coordinaties[0] = int.Parse(numbers[0]);
+            coordinaties[1] = int.Parse(numbers[1]);
+
+            return coordinaties;
+        }
+
+        public async Task<bool> ObstacleAvoidance()
+        {
+            switch (maneuverStatIndex)
+            {
+                case 0:
+                    await SendAsync(Messages.msgTurnLeft);
+                    break;
+
+                case 1:
+                    break;
+
+                case 2:
+                    break;
+
+                case 3:
+                    break;
+
+                case 4:
+                    break;
+
+                case 5:
+                    break;
+
+                case 6:
+                    break;
+
+                default:
+                    break;
+            }
+        }
     }
 }

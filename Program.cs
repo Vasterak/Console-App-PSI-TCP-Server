@@ -58,16 +58,6 @@ namespace TCPServerV2
         }
         AuthState curAuth, nextAuth;
 
-        //Server messages types
-        const string msgMove = "102 MOVE";
-        const string msgTurnLeft = "103 TURN LEFT";
-        const string msgTurnRight = "104 TURN RIGHT";
-        const string msgPickUp = "105 GET MESSAGE";
-        const string msgLogout = "106 LOGOUT";
-        const string msgKeyRequest = "107 KEY REQUEST";
-        const string msgOK = "200 OK";
-        private const string msgLoginFailed = "300 LOGIN FAILED";
-
         //Client information variables
         TcpClient client;
         Protocol protocol;
@@ -119,7 +109,7 @@ namespace TCPServerV2
                             break;
 
                         case CommunicationState.SuccessEnd:
-                            await protocol.SendAsync(msgLogout);
+                            await protocol.SendAsync(Messages.msgLogout);
                             client.Close();
                             break;
 
@@ -162,7 +152,7 @@ namespace TCPServerV2
                 case AuthState.KeyRequest:
                     Console.WriteLine("-------------------Part2------------------------");
 
-                    await protocol.SendAsync(msgKeyRequest);
+                    await protocol.SendAsync(Messages.msgKeyRequest);
                     nextAuth = AuthState.KeyID;
                     break;
 
@@ -214,13 +204,13 @@ namespace TCPServerV2
                         nextAuth = AuthState.AuthComplete;
                     else
                     {
-                        await protocol.SendAsync(msgLoginFailed);
+                        await protocol.SendAsync(Messages.msgLoginFailed);
                         nextAuth = AuthState.AuthFailEnd;
                     }
                     break;
 
                 case AuthState.AuthComplete:
-                    await protocol.SendAsync(msgOK);
+                    await protocol.SendAsync(Messages.msgOK);
                     return CommunicationState.Navigation;
 
                 case AuthState.AuthFailEnd:
@@ -234,12 +224,13 @@ namespace TCPServerV2
         {
             string message;
             Console.WriteLine("-------------------Movement------------------------");
+            bool avoidanceManeuver = false;
 
             //-----------------------First movement, we need to determine direction etc.--------------------
             if (initMove)
             {
                 //Sent first move
-                await protocol.SendAsync(msgMove);
+                await protocol.SendAsync(Messages.msgMove);
 
                 //Read input and check valid msg
                 message = await protocol.ReceiveAsync();
@@ -249,7 +240,7 @@ namespace TCPServerV2
                 //Save first coord
                 coordFirst = protocol.GetCoordinaties(message);
 
-                Debug.PrintInValue(message, "First coordinates");
+                //Debug.PrintInValue(message, "First coordinates");
                 Debug.PrintArray(coordFirst, 1);
 
                 //If we are on 0,0 we dont need to move
@@ -257,7 +248,7 @@ namespace TCPServerV2
                     return CommunicationState.PickSecret;
 
                 //Sent second move
-                await protocol.SendAsync(msgMove);
+                await protocol.SendAsync(Messages.msgMove);
 
                 //Read input and check valid msg
                 message = await protocol.ReceiveAsync();
@@ -267,7 +258,7 @@ namespace TCPServerV2
                 //Save second coord
                 coordSecond = protocol.GetCoordinaties(message);
 
-                Debug.PrintInValue(message, "Second coordinates");
+                //Debug.PrintInValue(message, "Second coordinates");
                 Debug.PrintArray(coordSecond, 2);
 
                 initMove = false;
@@ -280,14 +271,10 @@ namespace TCPServerV2
             coordSecondN[0] = Math.Abs(coordSecond[0]);
             coordSecondN[1] = Math.Abs(coordSecond[1]);
 
-            Debug.PrintArray(coordFirst, 1);
-            Debug.PrintArray(coordSecond, 2);
-
             //When equal, robot hit the rock
-            if (coordFirst == coordSecond)
+            if (coordFirst[0] == coordSecond[0] && coordFirst[1] == coordSecond[1] || avoidanceManeuver)
             {
-                Console.WriteLine("WILL FIX LATER ROBOT HIT ROCK");
-                return CommunicationState.ServerSyntaxError;
+                avoidanceManeuver = await protocol.ObstacleAvoidance();
             }
 
             //After second move we are on 0,0
@@ -301,13 +288,13 @@ namespace TCPServerV2
                 if (coordSecondN[1] == 0)
                 {
                     Console.WriteLine("Robot hit zero on second axis");
-                    await protocol.SendAsync(msgTurnRight);
-                    await protocol.SendAsync(msgMove);
+                    await protocol.SendAsync(Messages.msgTurnRight);
+                    await protocol.SendAsync(Messages.msgMove);
                 }
 
                 //We are not at the zero, continues until zero is met or we hit the rock
                 else
-                    await protocol.SendAsync(msgMove);
+                    await protocol.SendAsync(Messages.msgMove);
 
             }
 
@@ -318,19 +305,19 @@ namespace TCPServerV2
                 {
                     Console.WriteLine("We hit zero on first axis");
 
-                    await protocol.SendAsync(msgTurnLeft);
-                    await protocol.SendAsync(msgMove);
+                    await protocol.SendAsync(Messages.msgTurnLeft);
+                    await protocol.SendAsync(Messages.msgMove);
                 }
                 //We are not at the zero, continues until zero is met or we hit the rock
                 else
-                    await protocol.SendAsync(msgMove);
+                    await protocol.SendAsync(Messages.msgMove);
             }
 
             else if (coordSecondN[0] > coordFirstN[0] || coordSecondN[1] > coordFirstN[1])
             {
-                await protocol.SendAsync(msgTurnRight);
-                await protocol.SendAsync(msgTurnRight);
-                await protocol.SendAsync(msgMove);
+                await protocol.SendAsync(Messages.msgTurnRight);
+                await protocol.SendAsync(Messages.msgTurnRight);
+                await protocol.SendAsync(Messages.msgMove);
             }
 
             //READ NEW VALUES
@@ -349,7 +336,7 @@ namespace TCPServerV2
             string message;
 
             //Read msg
-            await protocol.SendAsync(msgPickUp);
+            await protocol.SendAsync(Messages.msgPickUp);
 
             //Check valid
             message = await protocol.ReceiveAsync();
