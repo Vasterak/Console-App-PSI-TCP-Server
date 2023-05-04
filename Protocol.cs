@@ -110,6 +110,8 @@ namespace TCPServerV2
                     int bytesRead = ((Task<int>)ReadTask).Result;
                     message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
                     message.TrimEnd('\0');
+
+                    timeoutTask = Task.Delay(TimeSpan.FromSeconds(1));
                 }
 
                 //Add again received content to buffer
