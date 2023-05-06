@@ -21,7 +21,7 @@ namespace TCPServerV2
         private const int FIXEDVALUE = 65536;
 
         //Incomming message buffers
-        private const int maxIncommingLength = 102;
+        private const int maxIncommingLength = 98;
         private string stringBuffer = "";
 
 
@@ -67,7 +67,7 @@ namespace TCPServerV2
             Array.Clear(receiveBuffer, 0, receiveBuffer.Length);
         }
 
-        public async Task<string> ReceiveAsync()
+        public async Task<string> ReceiveAsync(int msgID)
         {
             string message = "";
             //Cycle through data in buffer until full msg is found
@@ -85,7 +85,6 @@ namespace TCPServerV2
 
                     //Remove msg from buffer + remove \a \b, leave rest of msg there
                     stringBuffer = stringBuffer.Remove(0, i+2);
-                    Debug.PrintInValue(singleMsg, "VSTUPNI_DATA");
                     return singleMsg;
                 }
             }
@@ -95,6 +94,7 @@ namespace TCPServerV2
             //When no valid msg with termination(\a\b) was found in buffer wait for the rest of the msg
             while (stringBuffer.Length < maxIncommingLength)
             {
+                //-----------------------TIMEOUT SECTION TEST-START----------------------------------
                 //Read new data and check for timeout
                 var ReadTask = await Task.WhenAny(stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length), timeoutTask);
 
@@ -114,6 +114,7 @@ namespace TCPServerV2
 
                     //}
                 }
+                //-----------------------TIMEOUT SECTION TEST-END-----------------------------------
 
                 //Add again received content to buffer
                 stringBuffer += message;
@@ -123,17 +124,23 @@ namespace TCPServerV2
                 {
                     //Check if \a is located at the end of the buffer
                     if (stringBuffer[i] == '\a' && stringBuffer.Length == i + 1)
-                        break;
+                    {
+                        if (stringBuffer[i] == '\a' && stringBuffer[i-1] == '\a')
+                            return Messages.msgSyntaxError;
+                        else
+                            break;
+                    }
+                    else if (msgID == 0 && stringBuffer.Length > 18)
+                        return Messages.msgSyntaxError;
 
                     //When first msg is found
-                    if (stringBuffer[i] == '\a' && stringBuffer[i + 1] == '\b')
+                    else if (stringBuffer[i] == '\a' && stringBuffer[i + 1] == '\b')
                     {
                         //Save it to new string
                         string singleMsg = stringBuffer.Substring(0, i);
 
                         //Remove msg from buffer + remove \a \b, leave rest of msg there
                         stringBuffer = stringBuffer.Remove(0, i + 2);
-                        Debug.PrintInValue(singleMsg, "VSTUPNI_DATA");
                         return singleMsg;
                     }
                 }
@@ -161,6 +168,11 @@ namespace TCPServerV2
             else if (msg == Messages.msgTimeOutError)
             {
                 Console.WriteLine("SERVER: Client connection has timed out");
+                return false;
+            }
+            else if (msg == Messages.msgSyntaxError)
+            {
+                await SendAsync(Messages.msgSyntaxError);
                 return false;
             }
 
