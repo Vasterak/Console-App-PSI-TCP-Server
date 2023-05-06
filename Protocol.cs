@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -69,6 +70,7 @@ namespace TCPServerV2
 
         public async Task<string> ReceiveAsync(int msgID)
         {
+            Stopwatch sw = new Stopwatch();
             string message = "";
             //Cycle through data in buffer until full msg is found
             for (int i = 0; i < stringBuffer.Length; i++)
@@ -88,32 +90,28 @@ namespace TCPServerV2
                     return singleMsg;
                 }
             }
-
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(1));
+            sw.Start();
 
             //When no valid msg with termination(\a\b) was found in buffer wait for the rest of the msg
             while (stringBuffer.Length < maxIncommingLength)
             {
                 //-----------------------TIMEOUT SECTION TEST-START----------------------------------
-                //Read new data and check for timeout
-                var ReadTask = await Task.WhenAny(stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length), timeoutTask);
-
-                if (ReadTask == timeoutTask)
+                if (sw.ElapsedMilliseconds > 1000)
                     return Messages.msgTimeOutError;
-                else
+
+                var readTask = stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
+
+                if (await Task.WhenAny(readTask, Task.Delay(1000)) == readTask)
                 {
-                    int bytesRead = ((Task<int>)ReadTask).Result;
+                    int bytesRead = ((Task<int>)readTask).Result;
                     message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
                     message.TrimEnd('\0');
-
-                    timeoutTask = Task.Delay(TimeSpan.FromSeconds(1));
-                    //NOT WORKING CORRECTLY FIX IT! When client is killed This is not working
-
-                    //if (message != "")
-                    //{
-
-                    //}
                 }
+                else
+                    return Messages.msgTimeOutError;
+                
+                if (message != "")
+                    sw.Restart();
                 //-----------------------TIMEOUT SECTION TEST-END-----------------------------------
 
                 //Add again received content to buffer
