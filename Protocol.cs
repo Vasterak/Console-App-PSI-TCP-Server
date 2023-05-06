@@ -85,7 +85,7 @@ namespace TCPServerV2
 
                     //Remove msg from buffer + remove \a \b, leave rest of msg there
                     stringBuffer = stringBuffer.Remove(0, i+2);
-
+                    Debug.PrintInValue(singleMsg, "VSTUPNI_DATA");
                     return singleMsg;
                 }
             }
@@ -133,6 +133,7 @@ namespace TCPServerV2
 
                         //Remove msg from buffer + remove \a \b, leave rest of msg there
                         stringBuffer = stringBuffer.Remove(0, i + 2);
+                        Debug.PrintInValue(singleMsg, "VSTUPNI_DATA");
                         return singleMsg;
                     }
                 }
@@ -160,6 +161,15 @@ namespace TCPServerV2
             else if (msg == Messages.msgTimeOutError)
             {
                 Console.WriteLine("SERVER: Client connection has timed out");
+                return false;
+            }
+
+            //Check if some trailing and leading spaces were removed
+            int getLength = msg.Length;
+            msg = msg.Trim();
+            if (getLength > msg.Length)
+            {
+                await SendAsync(Messages.msgSyntaxError);
                 return false;
             }
 
@@ -213,6 +223,7 @@ namespace TCPServerV2
                         await SendAsync(Messages.msgSyntaxError);
                         return false;
                     }
+
                     //------------CHECK IF IT CAN BE PARSED-----------
                     //Remove "OK" from message
                     msg = msg.Remove(0, 2);

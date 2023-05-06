@@ -10,7 +10,7 @@ namespace TCPServerV2
     {
         static async Task Main(string[] args)
         {
-            IPAddress serverIP = IPAddress.Parse("127.0.0.1");
+            IPAddress serverIP = IPAddress.Parse("192.168.10.220");
             const int serverPort = 3999;
 
             TcpListener server = new TcpListener(serverIP, serverPort);
