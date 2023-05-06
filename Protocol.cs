@@ -130,7 +130,7 @@ namespace TCPServerV2
                         else
                             break;
                     }
-                    else if (msgID == 0 && stringBuffer.Length > 18)
+                    else if (msgID == 0 && stringBuffer.Length > 18 && i > 17)
                         return Messages.msgSyntaxError;
 
                     //When first msg is found
