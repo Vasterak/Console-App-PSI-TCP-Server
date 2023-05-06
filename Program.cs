@@ -72,6 +72,7 @@ namespace TCPServerV2
         bool initMove = true;
         bool avoidanceManeuver = false;
         int numOfExecutedMoves = 0;
+        string message = "";
 
         public Server(TcpClient client)
         {
@@ -224,9 +225,8 @@ namespace TCPServerV2
 
         private async Task<CommunicationState> Navigation()
         {
-            string message;
             Console.WriteLine("-------------------Movement------------------------");
-            //-----------------------First movement, we need to determine direction etc.--------------------
+            //-----------------------INITIAL MOVEMENT.--------------------
             if (initMove)
             {
                 //Sent first move
@@ -264,22 +264,27 @@ namespace TCPServerV2
                 initMove = false;
             }
 
-            //---------------------------------------Continous movement----------------------
-            //When equal, robot hit the rock
-            //if (((coordFirst[0] == coordSecond[0] && coordFirst[1] == coordSecond[1]) || avoidanceManeuver) && previousRotation == false)
-            //{
-            //    avoidanceManeuver = true;
-
-            //    avoidanceManeuver = await protocol.ObstacleAvoidance(coordSecond);
-            //}
-
+            //-----------------------CONTINUOUS MOVEMENT--------------------
             //Very lame solution for stuck situation
             if (coordFirst[0] == coordSecond[0] && coordFirst[1] == coordSecond[1])
             {
-                numOfExecutedMoves = 2;
-                await protocol.SendAsync(Messages.msgTurnRight);
-                await protocol.SendAsync(Messages.msgMove);
-                Console.WriteLine("TURN RIGHT FROM AVOIDING ROCK");
+                if (coordSecond[0] == 0 || coordSecond[1] == 0)
+                {
+                    avoidanceManeuver = true;
+                }
+                else
+                {
+                    numOfExecutedMoves = 2;
+                    await protocol.SendAsync(Messages.msgTurnRight);
+                    await protocol.SendAsync(Messages.msgMove);
+                    Console.WriteLine("TURN RIGHT FROM AVOIDING ROCK");
+                }
+            }
+
+            if (avoidanceManeuver)
+            {
+                avoidanceManeuver = await protocol.ObstacleAvoidance(coordSecond);
+                return await ReadNewValues();
             }
 
             //After second move we are on 0,0
@@ -335,10 +340,14 @@ namespace TCPServerV2
 
             coordFirst = coordSecond;
 
+            return await ReadNewValues();
+        }
+
+        private async Task<CommunicationState> ReadNewValues()
+        {
             //READ NEW VALUES
             for (int i = 0; i < numOfExecutedMoves; i++)
             {
-                Console.WriteLine("NOW READING NEW VALUES");
                 message = await protocol.ReceiveAsync();
                 if (await protocol.CheckValidInput(message, 3) == false)
                     return CommunicationState.ServerSyntaxError;
@@ -355,7 +364,6 @@ namespace TCPServerV2
             //Print new received values
             Debug.PrintCoords(coordFirst, 1);
             Debug.PrintCoords(coordSecond, 2);
-
             return CommunicationState.Navigation;
         }
 

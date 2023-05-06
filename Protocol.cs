@@ -70,7 +70,6 @@ namespace TCPServerV2
         public async Task<string> ReceiveAsync()
         {
             string message = "";
-            Console.WriteLine("Values in BUFF:" + stringBuffer + ":");
             //Cycle through data in buffer until full msg is found
             for (int i = 0; i < stringBuffer.Length; i++)
             {
