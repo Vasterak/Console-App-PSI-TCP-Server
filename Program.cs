@@ -70,6 +70,8 @@ namespace TCPServerV2
         int[] coordFirstN = new int[2];
         int[] coordSecondN = new int[2];
         bool initMove = true;
+        bool avoidanceManeuver = false;
+        int numOfExecutedMoves = 0;
 
         public Server(TcpClient client)
         {
@@ -224,8 +226,6 @@ namespace TCPServerV2
         {
             string message;
             Console.WriteLine("-------------------Movement------------------------");
-            bool avoidanceManeuver = false;
-
             //-----------------------First movement, we need to determine direction etc.--------------------
             if (initMove)
             {
@@ -241,7 +241,7 @@ namespace TCPServerV2
                 coordFirst = protocol.GetCoordinaties(message);
 
                 //Debug.PrintInValue(message, "First coordinates");
-                Debug.PrintArray(coordFirst, 1);
+                Debug.PrintCoords(coordFirst, 11);
 
                 //If we are on 0,0 we dont need to move
                 if (coordFirst[0] == 0 && coordFirst[1] == 0)
@@ -259,26 +259,31 @@ namespace TCPServerV2
                 coordSecond = protocol.GetCoordinaties(message);
 
                 //Debug.PrintInValue(message, "Second coordinates");
-                Debug.PrintArray(coordSecond, 2);
+                Debug.PrintCoords(coordSecond, 22);
 
                 initMove = false;
             }
 
             //---------------------------------------Continous movement----------------------
-
-            coordFirstN[0] = Math.Abs(coordFirst[0]);
-            coordFirstN[1] = Math.Abs(coordFirst[1]);
-            coordSecondN[0] = Math.Abs(coordSecond[0]);
-            coordSecondN[1] = Math.Abs(coordSecond[1]);
-
             //When equal, robot hit the rock
-            if (coordFirst[0] == coordSecond[0] && coordFirst[1] == coordSecond[1] || avoidanceManeuver)
+            //if (((coordFirst[0] == coordSecond[0] && coordFirst[1] == coordSecond[1]) || avoidanceManeuver) && previousRotation == false)
+            //{
+            //    avoidanceManeuver = true;
+
+            //    avoidanceManeuver = await protocol.ObstacleAvoidance(coordSecond);
+            //}
+
+            //Very lame solution for stuck situation
+            if (coordFirst[0] == coordSecond[0] && coordFirst[1] == coordSecond[1])
             {
-                avoidanceManeuver = await protocol.ObstacleAvoidance();
+                numOfExecutedMoves = 2;
+                await protocol.SendAsync(Messages.msgTurnRight);
+                await protocol.SendAsync(Messages.msgMove);
+                Console.WriteLine("TURN RIGHT FROM AVOIDING ROCK");
             }
 
             //After second move we are on 0,0
-            else if (coordSecond[0] == 0 && coordSecond[1] == 0)
+            if (coordSecond[0] == 0 && coordSecond[1] == 0)
                 return CommunicationState.PickSecret;
 
             //Navigating check if 5,7 moved to 5,6 is valid which is, other axis shoud not change
@@ -290,11 +295,15 @@ namespace TCPServerV2
                     Console.WriteLine("Robot hit zero on second axis");
                     await protocol.SendAsync(Messages.msgTurnRight);
                     await protocol.SendAsync(Messages.msgMove);
+                    numOfExecutedMoves = 2;
                 }
 
                 //We are not at the zero, continues until zero is met or we hit the rock
                 else
+                {
                     await protocol.SendAsync(Messages.msgMove);
+                    numOfExecutedMoves = 1;
+                }
 
             }
 
@@ -304,13 +313,16 @@ namespace TCPServerV2
                 if (coordSecondN[0] == 0)
                 {
                     Console.WriteLine("We hit zero on first axis");
-
+                    numOfExecutedMoves = 2;
                     await protocol.SendAsync(Messages.msgTurnLeft);
                     await protocol.SendAsync(Messages.msgMove);
                 }
                 //We are not at the zero, continues until zero is met or we hit the rock
                 else
+                {
                     await protocol.SendAsync(Messages.msgMove);
+                    numOfExecutedMoves = 1;
+                }
             }
 
             else if (coordSecondN[0] > coordFirstN[0] || coordSecondN[1] > coordFirstN[1])
@@ -318,15 +330,31 @@ namespace TCPServerV2
                 await protocol.SendAsync(Messages.msgTurnRight);
                 await protocol.SendAsync(Messages.msgTurnRight);
                 await protocol.SendAsync(Messages.msgMove);
+                numOfExecutedMoves = 3;
             }
 
-            //READ NEW VALUES
-            message = await protocol.ReceiveAsync();
-            if (await protocol.CheckValidInput(message, 3) == false)
-                return CommunicationState.ServerSyntaxError;
-
             coordFirst = coordSecond;
-            coordSecond = protocol.GetCoordinaties(message);
+
+            //READ NEW VALUES
+            for (int i = 0; i < numOfExecutedMoves; i++)
+            {
+                Console.WriteLine("NOW READING NEW VALUES");
+                message = await protocol.ReceiveAsync();
+                if (await protocol.CheckValidInput(message, 3) == false)
+                    return CommunicationState.ServerSyntaxError;
+                coordSecond = protocol.GetCoordinaties(message);
+            }
+            numOfExecutedMoves = 1;
+
+            //Convert to absolute value
+            coordFirstN[0] = Math.Abs(coordFirst[0]);
+            coordFirstN[1] = Math.Abs(coordFirst[1]);
+            coordSecondN[0] = Math.Abs(coordSecond[0]);
+            coordSecondN[1] = Math.Abs(coordSecond[1]);
+
+            //Print new received values
+            Debug.PrintCoords(coordFirst, 1);
+            Debug.PrintCoords(coordSecond, 2);
 
             return CommunicationState.Navigation;
         }

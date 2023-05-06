@@ -60,7 +60,7 @@ namespace TCPServerV2
             Console.WriteLine($"OUT :{message}:");
         }
 
-        public static void PrintArray(int[] input, int index)
+        public static void PrintCoords(int[] input, int index)
         {
             Console.Write($"Coordinaties{index}: {input[0]} {input[1]}\n");
         }

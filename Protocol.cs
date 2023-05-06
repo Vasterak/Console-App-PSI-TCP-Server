@@ -70,7 +70,7 @@ namespace TCPServerV2
         public async Task<string> ReceiveAsync()
         {
             string message = "";
-
+            Console.WriteLine("Values in BUFF:" + stringBuffer + ":");
             //Cycle through data in buffer until full msg is found
             for (int i = 0; i < stringBuffer.Length; i++)
             {
@@ -108,6 +108,12 @@ namespace TCPServerV2
                     message.TrimEnd('\0');
 
                     timeoutTask = Task.Delay(TimeSpan.FromSeconds(1));
+                    //NOT WORKING CORRECTLY FIX IT! When client is killed This is not working
+
+                    //if (message != "")
+                    //{
+
+                    //}
                 }
 
                 //Add again received content to buffer
@@ -128,7 +134,6 @@ namespace TCPServerV2
 
                         //Remove msg from buffer + remove \a \b, leave rest of msg there
                         stringBuffer = stringBuffer.Remove(0, i + 2);
-
                         return singleMsg;
                     }
                 }
@@ -285,35 +290,71 @@ namespace TCPServerV2
             return coordinaties;
         }
 
-        public async Task<bool> ObstacleAvoidance()
+        public async Task<bool> ObstacleAvoidance(int[] coords)
         {
+            Console.WriteLine($"INDEX VALUE: {maneuverStatIndex}");
+
             switch (maneuverStatIndex)
             {
                 case 0:
                     await SendAsync(Messages.msgTurnLeft);
+                    maneuverStatIndex++;
                     break;
 
                 case 1:
+                    await SendAsync(Messages.msgMove);
+                    maneuverStatIndex++;
                     break;
 
                 case 2:
+
+                    if (coords[0] == 0 || coords[1] == 0)
+                    {
+                        //we reach 0 on one axis
+                        maneuverStatIndex = 0;
+                        return false;
+                    }
+                    else
+                    {
+                        await SendAsync(Messages.msgTurnRight);
+                        maneuverStatIndex++;
+                    }
                     break;
 
                 case 3:
+                        await SendAsync(Messages.msgMove);
+                        maneuverStatIndex++;
                     break;
 
                 case 4:
+                        await SendAsync(Messages.msgMove);
+                        maneuverStatIndex++;
                     break;
 
                 case 5:
+                        await SendAsync(Messages.msgTurnRight);
+                        maneuverStatIndex++;
                     break;
 
                 case 6:
+                        await SendAsync(Messages.msgMove);
+                        maneuverStatIndex++;
                     break;
 
+                case 7:
+                    await SendAsync(Messages.msgTurnLeft);
+                        maneuverStatIndex++;
+                        return false;
+
+                case 8:
+                    await SendAsync(Messages.msgMove);
+                    maneuverStatIndex = 0;
+                    return false;
+
                 default:
-                    break;
+                    return true;
             }
+            return true;
         }
     }
 }
