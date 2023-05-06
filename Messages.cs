@@ -14,6 +14,10 @@ namespace TCPServerV2
         public const string msgKeyRequest = "107 KEY REQUEST";
         public const string msgOK = "200 OK";
 
+        //Client messages
+        public const string msgRecharing = "RECHARGING";
+        public const string msgFullPower = "FULL POWER";
+
         //Error messages
         public const string msgErrorCode = "234MSGTooLong0649";
         public const string msgTimeOutError = "TookYouLongEnough39434";

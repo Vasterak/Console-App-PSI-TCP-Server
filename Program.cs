@@ -169,6 +169,11 @@ namespace TCPServerV2
                         nextAuth = AuthState.AuthFailEnd;
                         break;
                     }
+                    if (message == Messages.msgRecharing)
+                    {
+                        nextAuth = AuthState.KeyID;
+                        break;
+                    }
 
                     //Debug.PrintAsAscii(message);
                     Debug.PrintInValue(message, "KeyID");
@@ -199,7 +204,12 @@ namespace TCPServerV2
                         nextAuth = AuthState.AuthFailEnd;
                         break;
                     }
-                        
+                    if (message == Messages.msgRecharing)
+                    {
+                        nextAuth = AuthState.KeyID;
+                        break;
+                    }
+
                     Debug.PrintInValue(message, "ClientConfirm");
 
                     //Check if keys are valid
@@ -226,7 +236,7 @@ namespace TCPServerV2
         private async Task<CommunicationState> Navigation()
         {
             Console.WriteLine("-------------------Movement------------------------");
-            //-----------------------INITIAL MOVEMENT.--------------------
+            //-----------------------INITIAL MOVEMENT.-------------------- //Recharge is not detected here, fix it
             if (initMove)
             {
                 //Sent first move
@@ -351,6 +361,10 @@ namespace TCPServerV2
                 message = await protocol.ReceiveAsync(1);
                 if (await protocol.CheckValidInput(message, 3) == false)
                     return CommunicationState.ServerSyntaxError;
+
+                if (message == Messages.msgRecharing)
+                    return CommunicationState.Navigation;
+
                 coordSecond = protocol.GetCoordinaties(message);
             }
             numOfExecutedMoves = 1;
@@ -378,6 +392,9 @@ namespace TCPServerV2
             message = await protocol.ReceiveAsync(1);
             if (await protocol.CheckValidInput(message, 6) == false)
                 return CommunicationState.ServerSyntaxError;
+
+            if (message == Messages.msgRecharing)
+                return CommunicationState.Navigation;
 
             //Print
             Debug.PrintInValue(message, "Secret message");

@@ -25,6 +25,9 @@ namespace TCPServerV2
         private const int maxIncommingLength = 98;
         private string stringBuffer = "";
 
+        //Timeout and recharging constants
+        private const int timeout = 1000; //in ms
+        private const int rechTimeout = 5000; // in ms
 
         //Obstacle avoidance variables
         private int maneuverStatIndex = 0;
@@ -87,6 +90,7 @@ namespace TCPServerV2
 
                     //Remove msg from buffer + remove \a \b, leave rest of msg there
                     stringBuffer = stringBuffer.Remove(0, i+2);
+                    sw.Stop();
                     return singleMsg;
                 }
             }
@@ -96,20 +100,26 @@ namespace TCPServerV2
             while (stringBuffer.Length < maxIncommingLength)
             {
                 //-----------------------TIMEOUT SECTION TEST-START----------------------------------
-                if (sw.ElapsedMilliseconds > 1000)
+                if (sw.ElapsedMilliseconds > timeout)
+                {
+                    sw.Stop();
                     return Messages.msgTimeOutError;
+                }
 
                 var readTask = stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
 
-                if (await Task.WhenAny(readTask, Task.Delay(1000)) == readTask)
+                if (await Task.WhenAny(readTask, Task.Delay(timeout)) == readTask)
                 {
                     int bytesRead = ((Task<int>)readTask).Result;
                     message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
                     message.TrimEnd('\0');
                 }
                 else
+                {
+                    sw.Stop();
                     return Messages.msgTimeOutError;
-                
+                }
+
                 if (message != "")
                     sw.Restart();
                 //-----------------------TIMEOUT SECTION TEST-END-----------------------------------
@@ -124,12 +134,18 @@ namespace TCPServerV2
                     if (stringBuffer[i] == '\a' && stringBuffer.Length == i + 1)
                     {
                         if (stringBuffer[i] == '\a' && stringBuffer[i-1] == '\a')
+                        {
+                            sw.Stop();
                             return Messages.msgSyntaxError;
+                        }
                         else
                             break;
                     }
                     else if (msgID == 0 && stringBuffer.Length > 18 && i > 17)
+                    {
+                        sw.Stop();
                         return Messages.msgSyntaxError;
+                    }
 
                     //When first msg is found
                     else if (stringBuffer[i] == '\a' && stringBuffer[i + 1] == '\b')
@@ -139,10 +155,12 @@ namespace TCPServerV2
 
                         //Remove msg from buffer + remove \a \b, leave rest of msg there
                         stringBuffer = stringBuffer.Remove(0, i + 2);
+                        sw.Stop();
                         return singleMsg;
                     }
                 }
             }
+            sw.Stop();
             return Messages.msgErrorCode;
         }
 
@@ -174,6 +192,13 @@ namespace TCPServerV2
                 return false;
             }
 
+            //Client is recharging wait until msg full power is received. Until then do nothing
+            else if (msg == Messages.msgRecharing && msgID != 0)
+            {
+                Console.WriteLine("Recharge detected");
+                return await ClientRecharging();
+            }
+
             //Check if some trailing and leading spaces were removed
             int getLength = msg.Length;
             msg = msg.Trim();
@@ -187,7 +212,7 @@ namespace TCPServerV2
             {
                 //CLIENT_USERNAME
                 case 0:
-                    if (msg.Length > 18 || msg == "RECHARGING")
+                    if (msg.Length > 18 || msg == Messages.msgRecharing)
                     {
                         await SendAsync(Messages.msgSyntaxError);
                         return false;
@@ -251,23 +276,23 @@ namespace TCPServerV2
 
                     break;
 
-                //CLIENT_RECHARGING
-                case 4:
-                    if (msg.Length > 10 || msg != "RECHARGING")
-                    {
-                        await SendAsync(Messages.msgSyntaxError);
-                        return false;
-                    }
-                    break;
+                ////CLIENT_RECHARGING
+                //case 4:
+                //    if (msg.Length > 10 || msg != Messages.msgRecharing)
+                //    {
+                //        await SendAsync(Messages.msgSyntaxError);
+                //        return false;
+                //    }
+                //    break;
 
-                //CLIENT_FULL_POWER
-                case 5:
-                    if (msg.Length > 10 || msg != "FULL POWER")
-                    {
-                        await SendAsync(Messages.msgSyntaxError);
-                        return false;
-                    }
-                    break;
+                ////CLIENT_FULL_POWER
+                //case 5:
+                //    if (msg.Length > 10 || msg != Messages.msgFullPower)
+                //    {
+                //        await SendAsync(Messages.msgSyntaxError);
+                //        return false;
+                //    }
+                //    break;
 
                 //CLIENT_MESSAGE
                 case 6:
@@ -375,6 +400,42 @@ namespace TCPServerV2
                     return true;
             }
             return true;
+        }
+
+        private async Task<bool> ClientRecharging()
+        {
+            string message = "";
+            Stopwatch sw = Stopwatch.StartNew();
+            while (true)
+            {
+                if (sw.ElapsedMilliseconds > rechTimeout)
+                {
+                    sw.Stop();
+                    return false;
+                }
+
+                var readTask = stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
+
+                if (await Task.WhenAny(readTask, Task.Delay(rechTimeout)) == readTask)
+                {
+                    int bytesRead = ((Task<int>)readTask).Result;
+                    message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
+                    message.TrimEnd('\0');
+
+                    if (message == (Messages.msgFullPower + '\a'+'\b'))
+                    {
+                        Console.WriteLine("FULL POWER Received");
+                        sw.Stop();
+                        return true;
+                    }
+
+                }
+                else
+                {
+                    sw.Stop();
+                    return false;
+                }
+            }
         }
     }
 }
