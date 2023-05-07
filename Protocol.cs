@@ -189,7 +189,7 @@ namespace TCPServerV2
             }
             else if (msg == Messages.msgTimeOutError)
             {
-                Console.WriteLine("SERVER: Client connection has timed out");
+                Debug.PrintSimpleMsg("SERVER: Client connection has timed out");
                 return false;
             }
             else if (msg == Messages.msgSyntaxError)
@@ -201,7 +201,7 @@ namespace TCPServerV2
             //Client is recharging wait until msg full power is received. Until then do nothing
             else if (msg == Messages.msgRecharing && msgID != 0)
             {
-                Console.WriteLine("Recharge detected");
+                Debug.PrintSimpleMsg("Recharge detected");
                 return await ClientRecharging();
             }
 
@@ -282,24 +282,6 @@ namespace TCPServerV2
 
                     break;
 
-                ////CLIENT_RECHARGING
-                //case 4:
-                //    if (msg.Length > 10 || msg != Messages.msgRecharing)
-                //    {
-                //        await SendAsync(Messages.msgSyntaxError);
-                //        return false;
-                //    }
-                //    break;
-
-                ////CLIENT_FULL_POWER
-                //case 5:
-                //    if (msg.Length > 10 || msg != Messages.msgFullPower)
-                //    {
-                //        await SendAsync(Messages.msgSyntaxError);
-                //        return false;
-                //    }
-                //    break;
-
                 //CLIENT_MESSAGE
                 case 6:
                     if (msg.Length > 100)
@@ -343,7 +325,7 @@ namespace TCPServerV2
 
         public async Task<bool> ObstacleAvoidance(int[] coords)
         {
-            Console.WriteLine($"INDEX VALUE: {maneuverStatIndex}");
+            Debug.PrintSimpleMsg($"INDEX VALUE: {maneuverStatIndex}");
 
             switch (maneuverStatIndex)
             {
@@ -414,14 +396,14 @@ namespace TCPServerV2
 
             if (message == Messages.msgFullPower)
             {
-                Console.WriteLine("FULL POWER Received");
+                Debug.PrintSimpleMsg("FULL POWER Received");
                 return true;
             }
             else if (message == Messages.msgTimeOutError)
                 return false;
             else
             {
-                Console.WriteLine($"RECHARGE FAILED RECEIVED MSG:{message}:");
+                Debug.PrintSimpleMsg($"RECHARGE FAILED RECEIVED MSG:{message}:");
                 await SendAsync(Messages.msgLogicError);
                 return false;
             }

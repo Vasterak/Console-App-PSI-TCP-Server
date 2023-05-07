@@ -15,18 +15,13 @@ namespace TCPServerV2
 
             TcpListener server = new TcpListener(serverIP, serverPort);
             server.Start();
-            Console.WriteLine($"Server started listening on port {serverPort}");
+            Debug.PrintSimpleMsg($"Server started listening on port {serverPort}");
 
             while (true)
             {
                 TcpClient client = await server.AcceptTcpClientAsync();
-                Console.WriteLine($"\n\n\nNew client connected: {client.Client.RemoteEndPoint}");
+                Debug.PrintSimpleMsg($"\n\n\nNew client connected from: {client.Client.RemoteEndPoint}");
 
-                //Set timeout time
-                client.ReceiveTimeout = 1000; //in ms
-
-                //Handle client communication
-                //Task.Run(() => HandleClientAsync(client));
                 Server mainServer = new Server(client);
                 _ = mainServer.HandleClientAsync();
             }
@@ -122,7 +117,7 @@ namespace TCPServerV2
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e}");
+                Debug.PrintSimpleMsg($"Error: {e}");
                 client.Close();
             }
         }
@@ -134,7 +129,8 @@ namespace TCPServerV2
             switch (curAuth)
             {
                 case AuthState.GetName:
-                    Console.WriteLine("-------------------Part1------------------------");
+                    Debug.PrintSimpleMsg("-------------------Part1------------------------");
+
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync(0, false);
                     if (await protocol.CheckValidInput(message, 0) == false)
@@ -142,25 +138,20 @@ namespace TCPServerV2
                         nextAuth = AuthState.AuthFailEnd;
                         break;
                     }
-
-                    //Debug.PrintAsAscii(message);
                     Debug.PrintInValue(message, "Name");
-
-
                     clientName = message;
                     nextAuth = AuthState.KeyRequest;
-                    
                     break;
 
                 case AuthState.KeyRequest:
-                    Console.WriteLine("-------------------Part2------------------------");
+                    Debug.PrintSimpleMsg("-------------------Part2------------------------");
 
                     await protocol.SendAsync(Messages.msgKeyRequest);
                     nextAuth = AuthState.KeyID;
                     break;
 
                 case AuthState.KeyID:
-                    Console.WriteLine("-------------------Part3------------------------");
+                    Debug.PrintSimpleMsg("-------------------Part3------------------------");
 
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync(1, false);
@@ -185,9 +176,9 @@ namespace TCPServerV2
                     break;
 
                 case AuthState.ServerConfirm:
-                    Console.WriteLine("-------------------Part4------------------------");
+                    Debug.PrintSimpleMsg("-------------------Part4------------------------");
 
-                    Console.WriteLine("GeneratedKey:" + generatedKey);
+                    Debug.PrintSimpleMsg("GeneratedKey:" + generatedKey);
 
                     string idk = generatedKey.ToString();
                     await protocol.SendAsync(idk);
@@ -195,7 +186,7 @@ namespace TCPServerV2
                     break;
 
                 case AuthState.ClientConfirm:
-                    Console.WriteLine("-------------------Part5------------------------");
+                    Debug.PrintSimpleMsg("-------------------Part5------------------------");
 
                     //Read input and check validity.
                     message = await protocol.ReceiveAsync(1, false);
@@ -235,8 +226,8 @@ namespace TCPServerV2
 
         private async Task<CommunicationState> Navigation()
         {
-            Console.WriteLine("-------------------Movement------------------------");
-            //-----------------------INITIAL MOVEMENT.-------------------- //Recharge is not detected here, fix it
+            Debug.PrintSimpleMsg("-------------------Movement------------------------");
+            //-----------------------INITIAL MOVEMENT.--------------------
             if (initMove)
             {
                 //Sent first move
@@ -279,15 +270,13 @@ namespace TCPServerV2
             if (coordFirst[0] == coordSecond[0] && coordFirst[1] == coordSecond[1])
             {
                 if (coordSecond[0] == 0 || coordSecond[1] == 0)
-                {
                     avoidanceManeuver = true;
-                }
                 else
                 {
                     numOfExecutedMoves = 2;
                     await protocol.SendAsync(Messages.msgTurnRight);
                     await protocol.SendAsync(Messages.msgMove);
-                    Console.WriteLine("TURN RIGHT FROM AVOIDING ROCK");
+                    Debug.PrintSimpleMsg("Obstacle HIT");
                 }
             }
 
@@ -307,7 +296,7 @@ namespace TCPServerV2
                 //Check on moving axis if we are on 0
                 if (coordSecondN[1] == 0)
                 {
-                    Console.WriteLine("Robot hit zero on second axis");
+                    Debug.PrintSimpleMsg("Robot hit zero on second axis");
                     await protocol.SendAsync(Messages.msgTurnRight);
                     await protocol.SendAsync(Messages.msgMove);
                     numOfExecutedMoves = 2;
@@ -319,7 +308,6 @@ namespace TCPServerV2
                     await protocol.SendAsync(Messages.msgMove);
                     numOfExecutedMoves = 1;
                 }
-
             }
 
             else if (coordFirstN[1] == coordSecondN[1] && coordFirstN[0] > coordSecondN[0])
@@ -327,7 +315,7 @@ namespace TCPServerV2
                 //Check on moving axis if we are on 0
                 if (coordSecondN[0] == 0)
                 {
-                    Console.WriteLine("We hit zero on first axis");
+                    Debug.PrintSimpleMsg("We hit zero on first axis");
                     numOfExecutedMoves = 2;
                     await protocol.SendAsync(Messages.msgTurnLeft);
                     await protocol.SendAsync(Messages.msgMove);
@@ -368,7 +356,6 @@ namespace TCPServerV2
                     i--;
                     continue;
                 }
-
                 coordSecond = protocol.GetCoordinaties(message);
             }
             numOfExecutedMoves = 1;

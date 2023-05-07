@@ -8,13 +8,8 @@ namespace TCPServerV2
 {
     public static class Debug
     {
-
         const string headerMsg = "-----RAW BYTES-----";
         const string spacingMsg = "-----";
-
-        //static List<ConsoleColor> clientColorsList = new List<ConsoleColor>();
-        //static Random rand = new Random();
-        //static ConsoleColor color;
 
         public static void PrintAsChars(string message)
         {
@@ -70,17 +65,9 @@ namespace TCPServerV2
             Console.Write($"Coordinaties{index}: {input[0]} {input[1]}\n");
         }
 
-
-        //public static ConsoleColor ChooseRandomColor()
-        //{
-        //    Array array = Enum.GetValues(typeof(ConsoleColor));
-        //    ConsoleColor randomColor = ConsoleColor.White;
-        //    if (array != null)
-        //    {
-        //        randomColor = (ConsoleColor)array.GetValue(rand.Next(array.Length));
-        //    }
-
-        //    return randomColor;
-        //}
+        public static void PrintSimpleMsg(string message)
+        {
+            Console.WriteLine(message);
+        }
     }
 }
