@@ -363,7 +363,11 @@ namespace TCPServerV2
                     return CommunicationState.ServerSyntaxError;
 
                 if (message == Messages.msgRecharing)
-                    return CommunicationState.Navigation;
+                {
+                    //i-- becuase are receving one more message and thats the FULL POWER
+                    i--;
+                    continue;
+                }
 
                 coordSecond = protocol.GetCoordinaties(message);
             }

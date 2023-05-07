@@ -428,7 +428,12 @@ namespace TCPServerV2
                         sw.Stop();
                         return true;
                     }
-
+                    else
+                    {
+                        Console.WriteLine($"RECHARGE FAILED RECEIVED MSG{message}");
+                        await SendAsync(Messages.msgLogicError);
+                        return false;
+                    }
                 }
                 else
                 {
