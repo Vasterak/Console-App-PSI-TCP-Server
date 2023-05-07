@@ -136,7 +136,7 @@ namespace TCPServerV2
                 case AuthState.GetName:
                     Console.WriteLine("-------------------Part1------------------------");
                     //Read input and check validity.
-                    message = await protocol.ReceiveAsync(0);
+                    message = await protocol.ReceiveAsync(0, false);
                     if (await protocol.CheckValidInput(message, 0) == false)
                     {
                         nextAuth = AuthState.AuthFailEnd;
@@ -163,7 +163,7 @@ namespace TCPServerV2
                     Console.WriteLine("-------------------Part3------------------------");
 
                     //Read input and check validity.
-                    message = await protocol.ReceiveAsync(1);
+                    message = await protocol.ReceiveAsync(1, false);
                     if (await protocol.CheckValidInput(message, 1) == false)
                     {
                         nextAuth = AuthState.AuthFailEnd;
@@ -198,7 +198,7 @@ namespace TCPServerV2
                     Console.WriteLine("-------------------Part5------------------------");
 
                     //Read input and check validity.
-                    message = await protocol.ReceiveAsync(1);
+                    message = await protocol.ReceiveAsync(1, false);
                     if (await protocol.CheckValidInput(message, 2) == false)
                     {
                         nextAuth = AuthState.AuthFailEnd;
@@ -243,7 +243,7 @@ namespace TCPServerV2
                 await protocol.SendAsync(Messages.msgMove);
 
                 //Read input and check valid msg
-                message = await protocol.ReceiveAsync(1);
+                message = await protocol.ReceiveAsync(1, false);
                 if (await protocol.CheckValidInput(message, 3) == false)
                     return CommunicationState.ServerSyntaxError;
 
@@ -261,7 +261,7 @@ namespace TCPServerV2
                 await protocol.SendAsync(Messages.msgMove);
 
                 //Read input and check valid msg
-                message = await protocol.ReceiveAsync(1);
+                message = await protocol.ReceiveAsync(1, false);
                 if (await protocol.CheckValidInput(message, 3) == false)
                     return CommunicationState.ServerSyntaxError;
 
@@ -358,7 +358,7 @@ namespace TCPServerV2
             //READ NEW VALUES
             for (int i = 0; i < numOfExecutedMoves; i++)
             {
-                message = await protocol.ReceiveAsync(1);
+                message = await protocol.ReceiveAsync(1, false);
                 if (await protocol.CheckValidInput(message, 3) == false)
                     return CommunicationState.ServerSyntaxError;
 
@@ -393,7 +393,7 @@ namespace TCPServerV2
             await protocol.SendAsync(Messages.msgPickUp);
 
             //Check valid
-            message = await protocol.ReceiveAsync(1);
+            message = await protocol.ReceiveAsync(1, false);
             if (await protocol.CheckValidInput(message, 6) == false)
                 return CommunicationState.ServerSyntaxError;
 

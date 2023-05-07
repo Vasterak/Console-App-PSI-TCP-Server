@@ -26,7 +26,8 @@ namespace TCPServerV2
         private string stringBuffer = "";
 
         //Timeout and recharging constants
-        private const int timeout = 1000; //in ms
+        private int timeout = 1000; //in ms
+        private const int normalTimeout = 1000; // in ms
         private const int rechTimeout = 5000; // in ms
 
         //Obstacle avoidance variables
@@ -71,8 +72,13 @@ namespace TCPServerV2
             Array.Clear(receiveBuffer, 0, receiveBuffer.Length);
         }
 
-        public async Task<string> ReceiveAsync(int msgID)
+        public async Task<string> ReceiveAsync(int msgID, bool recharging)
         {
+            if (recharging)
+                timeout = rechTimeout;
+            else
+                timeout = normalTimeout;
+
             Stopwatch sw = new Stopwatch();
             string message = "";
             //Cycle through data in buffer until full msg is found
@@ -404,42 +410,20 @@ namespace TCPServerV2
 
         private async Task<bool> ClientRecharging()
         {
-            string message = "";
-            Stopwatch sw = Stopwatch.StartNew();
-            while (true)
+            string message = await ReceiveAsync(1, true);
+
+            if (message == Messages.msgFullPower)
             {
-                if (sw.ElapsedMilliseconds > rechTimeout)
-                {
-                    sw.Stop();
-                    return false;
-                }
-
-                var readTask = stream.ReadAsync(receiveBuffer, 0, receiveBuffer.Length);
-
-                if (await Task.WhenAny(readTask, Task.Delay(rechTimeout)) == readTask)
-                {
-                    int bytesRead = ((Task<int>)readTask).Result;
-                    message = Encoding.ASCII.GetString(receiveBuffer, 0, bytesRead);
-                    message.TrimEnd('\0');
-
-                    if (message == (Messages.msgFullPower + '\a'+'\b'))
-                    {
-                        Console.WriteLine("FULL POWER Received");
-                        sw.Stop();
-                        return true;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"RECHARGE FAILED RECEIVED MSG{message}");
-                        await SendAsync(Messages.msgLogicError);
-                        return false;
-                    }
-                }
-                else
-                {
-                    sw.Stop();
-                    return false;
-                }
+                Console.WriteLine("FULL POWER Received");
+                return true;
+            }
+            else if (message == Messages.msgTimeOutError)
+                return false;
+            else
+            {
+                Console.WriteLine($"RECHARGE FAILED RECEIVED MSG:{message}:");
+                await SendAsync(Messages.msgLogicError);
+                return false;
             }
         }
     }
