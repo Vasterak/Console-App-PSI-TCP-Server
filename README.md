@@ -2,7 +2,7 @@
 I'm going through my personal GitHub and doing some purging and deciding what to delete and what is worth preserving.
 I think that this is worth saving even though I probably won't ever look at it again as I never did after finishing it :D
 With this update I'm making this repo public and I removed all personal information / links of the CTU FIT university employees for safety reasons.
-Also including a VM file that (I think) was used for testing purposes, as I removed the direct links for download again for safety reasons.
+Also including testing binaries that (I think) was used for testing purposes, as I removed the direct links for download again for safety reasons.
 
 ## All content is in Czech language
 Toto zadání jsem nevytvořil já. jedná se o Majetek FIT CVUT CZECH REPUBLIC, byla to semestrální práce, kterou jsem vykonával v roce 2023.
